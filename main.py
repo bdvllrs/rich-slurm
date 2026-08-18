@@ -20,7 +20,7 @@ COLORS = {
     "cancelled": environ.get("RS_COLOR_CANCELLED", "orange3"),
 }
 DEFAULT_ARGS = {
-    "Id": "job_id",
+    "Id": "array_id",
     "User": "user",
     "Name": "name",
     "State": "state.current",
@@ -102,6 +102,23 @@ def display_duration(seconds: float) -> str:
 )
 def _(name: str, job: dict[str, Any]) -> str:
     return str(job[name])
+
+
+@extract(
+    "array_id",
+)
+def _(_: str, job: dict[str, Any]) -> str:
+    job_id = _callbacks["job_id"](job)
+    if (
+        "array" not in job
+        or job["array"]["job_id"] == "0"
+        or not job["array"]["task_id"]["set"]
+    ):
+        return job_id
+
+    array_id = job["array"]["job_id"]
+    task_id = job["array"]["task_id"]["number"]
+    return f"{job_id} ({array_id}_{task_id})"
 
 
 @extract("time.end", "time.start", "time.submission")
