@@ -3,7 +3,7 @@ import json
 import shlex
 import subprocess
 from collections.abc import Iterable
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 from functools import partial
 from os import environ, getlogin
 from typing import Any
@@ -49,8 +49,8 @@ STATE_TO_COLOR = {
     "CANCELLED": "cancelled",
 }
 
-GPU_THERMAL_DESIGN_POWER = float(environ.get("RS_GPU_TDP", 700))
-CPU_THERMAL_DESIGN_POWER = float(environ.get("RS_GPU_TDP", 0))
+GPU_THERMAL_DESIGN_POWER = float(environ.get("RS_GPU_TDP", "700"))
+CPU_THERMAL_DESIGN_POWER = float(environ.get("RS_GPU_TDP", "0"))
 
 
 _callbacks: dict[str, Any] = {}
@@ -80,12 +80,12 @@ def display_time(t: time) -> str:
     return " ".join(out)
 
 
-def display_duration(seconds: int | float) -> str:
+def display_duration(seconds: float) -> str:
     days = seconds // 86400
     prefix = ""
     if days > 0:
         prefix = f"{days}d "
-    return prefix + display_time(datetime.fromtimestamp(seconds).time())
+    return prefix + display_time(datetime.fromtimestamp(seconds, tz=UTC).time())
 
 
 @extract(
@@ -109,7 +109,7 @@ def _(name: str, job: dict[str, Any]) -> str:
     seconds = job["time"][name[5:]]
     if seconds == 0:
         return "-"
-    return datetime.fromtimestamp(seconds).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.fromtimestamp(seconds, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 @extract("time.elapsed")
@@ -124,8 +124,8 @@ def _(_name: str, job: dict[str, Any]) -> str:
 
 @extract("time.left")
 def _(_name: str, job: dict[str, Any]) -> str:
-    limit = datetime.fromtimestamp(job["time"]["limit"]["number"] * 60)
-    elapsed = datetime.fromtimestamp(job["time"]["elapsed"])
+    limit = datetime.fromtimestamp(job["time"]["limit"]["number"] * 60, tz=UTC)
+    elapsed = datetime.fromtimestamp(job["time"]["elapsed"], tz=UTC)
     return display_duration((limit - elapsed).total_seconds())
 
 
@@ -312,7 +312,7 @@ def main():
         print_columns()
         return
     else:
-        ValueError(f"Subcommand {args.command} does not exist.")
+        raise ValueError(f"Subcommand {args.command} does not exist.")
 
     table = Table(show_header=True, show_footer=True)
     user_format = environ.get("RS_COLUMNS", None)
