@@ -1,6 +1,6 @@
 # squeue and sacct displayed with rich
 
-Install with
+Install with uv
 ```
 uv tool install rs --from https://github.com/bdvllrs/rich-slurm
 ```
@@ -9,6 +9,13 @@ or directly use with uvx:
 ```
 uvx rs --from https://github.com/bdvllrs/rich-slurm
 ```
+
+Without uv:
+
+```
+pip install --user https://github.com/bdvllrs/rich-slurm
+```
+
 ## Commands
 
 Display my jobs (equivalent to `sacct -u $USER`)
