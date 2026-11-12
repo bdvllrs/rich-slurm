@@ -50,7 +50,7 @@ STATE_TO_COLOR = {
 }
 
 GPU_THERMAL_DESIGN_POWER = float(environ.get("RS_GPU_TDP", "700"))
-CPU_THERMAL_DESIGN_POWER = float(environ.get("RS_CPU_TDP", "0"))
+CPU_THERMAL_DESIGN_POWER = float(environ.get("RS_CPU_TDP", "5.5"))
 
 
 _callbacks: dict[str, Any] = {}

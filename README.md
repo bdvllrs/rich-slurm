@@ -80,5 +80,5 @@ Values used to derive the job's energy consumption:
 
 ```
 RS_GPU_TDP=700
-RS_CPU_TDP=0
+RS_CPU_TDP=5.5
 ```
