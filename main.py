@@ -54,11 +54,15 @@ CPU_THERMAL_DESIGN_POWER = float(environ.get("RS_CPU_TDP", "5.5"))
 
 
 _callbacks: dict[str, Any] = {}
+_column_descriptions: dict[str, str] = {}
 
 
-def extract(*names: str):
+def extract(*names: str | tuple[str, str]):
     def aux(func):
         for name in names:
+            if isinstance(name, tuple):
+                name, description = name
+                _column_descriptions[name] = description
             _callbacks[name] = partial(func, name)
         return func
 
@@ -89,23 +93,29 @@ def display_duration(seconds: float) -> str:
 
 
 @extract(
-    "job_id",
-    "name",
-    "nodes",
-    "partition",
-    "qos",
-    "user",
-    "stdout_expanded",
-    "stderr_expanded",
-    "submit_line",
-    "working_directory",
+    ("job_id", "the slurm id of the job"),
+    ("name", "the slurm name of the job"),
+    ("nodes", "the nodes where the job is running"),
+    ("partition", "the requested partition"),
+    ("qos", "the requested qos"),
+    ("user", "the user who submitted the job"),
+    ("stdout_expanded", "the absolute path to the stdout logs"),
+    ("stderr_expanded", "the absolute path to the stderr logs"),
+    ("submit_line", "the command used to submit the job"),
+    ("working_directory", "the job's working directory"),
 )
 def _(name: str, job: dict[str, Any]) -> str:
     return str(job[name])
 
 
 @extract(
-    "array_id",
+    (
+        "array_id",
+        (
+            'the full id in format "<job-id> (<array-id>_<task-id>)". '
+            "Only shows the <job-id> if the job is not an array"
+        ),
+    ),
 )
 def _(_: str, job: dict[str, Any]) -> str:
     job_id = _callbacks["job_id"](job)
@@ -121,7 +131,11 @@ def _(_: str, job: dict[str, Any]) -> str:
     return f"{job_id} ({array_id}_{task_id})"
 
 
-@extract("time.end", "time.start", "time.submission")
+@extract(
+    ("time.end", "the end time of the job"),
+    ("time.start", "the start time of the job"),
+    ("time.submission", "the submitted time of the job"),
+)
 def _(name: str, job: dict[str, Any]) -> str:
     seconds = job["time"][name[5:]]
     if seconds == 0:
@@ -129,41 +143,46 @@ def _(name: str, job: dict[str, Any]) -> str:
     return datetime.fromtimestamp(seconds, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
-@extract("time.elapsed")
+@extract(("time.elapsed", "the current elapsed time of the job"))
 def _(name: str, job: dict[str, Any]) -> str:
     return display_duration(job["time"][name[5:]])
 
 
-@extract("time.limit")
+@extract(("time.limit", "the requested time limit of the job"))
 def _(_name: str, job: dict[str, Any]) -> str:
     return display_duration(job["time"]["limit"]["number"] * 60)
 
 
-@extract("time.left")
+@extract(("time.left", "the current time left of the job"))
 def _(_name: str, job: dict[str, Any]) -> str:
     limit = datetime.fromtimestamp(job["time"]["limit"]["number"] * 60, tz=UTC)
     elapsed = datetime.fromtimestamp(job["time"]["elapsed"], tz=UTC)
     return display_duration((limit - elapsed).total_seconds())
 
 
-@extract("exit_code")
+@extract(("exit_code", 'the exit code of the job in format "<return-code>:<signal>"'))
 def _(_name: str, job: dict[str, Any]) -> str:
     return_code = job["exit_code"]["return_code"]["number"]
     signal = job["exit_code"]["signal"]["id"]["number"]
     return f"{return_code}:{signal}"
 
 
-@extract("state.current")
+@extract(("state.current", "the current state of the job"))
 def _(_name: str, job: dict[str, Any]) -> str:
     return job["state"]["current"][0]
 
 
-@extract("state.reason")
+@extract(("state.reason", "the reason the job is PENDING"))
 def _(_name: str, job: dict[str, Any]) -> str:
     return job["state"]["reason"]
 
 
-@extract("state.current_and_reason")
+@extract(
+    (
+        "state.current_and_reason",
+        "the current state and the reason if the job is PENDING",
+    )
+)
 def _(_name: str, job: dict[str, Any]) -> str:
     """
     Returns the current state, and adds the reason in the case the reason is PENDING.
@@ -183,14 +202,14 @@ def get_tres(type_: str, name: str, resources: list[dict[str, Any]]) -> float:
 
 
 @extract(
-    "tres.allocated.mem",
-    "tres.allocated.gres/gpu",
-    "tres.allocated.cpu",
-    "tres.allocated.node",
-    "tres.requested.mem",
-    "tres.requested.gres/gpu",
-    "tres.requested.cpu",
-    "tres.requested.node",
+    ("tres.allocated.mem", "the allocated memory for the job"),
+    ("tres.allocated.gres/gpu", "the allocated gpus for the job"),
+    ("tres.allocated.cpu", "the allocated cpus for the job"),
+    ("tres.allocated.node", "the allocated nodes for the job"),
+    ("tres.requested.mem", "the requested memory for the job"),
+    ("tres.requested.gres/gpu", "the requested gpus for the job"),
+    ("tres.requested.cpu", "the requested cpu for the jobs"),
+    ("tres.requested.node", "the requested nodes for the job"),
 )
 def _(name: str, job: dict[str, Any]) -> str:
     parts = name.split(".")
@@ -202,10 +221,22 @@ def _(name: str, job: dict[str, Any]) -> str:
 
 
 @extract(
-    "tres.mem",
-    "tres.gres/gpu",
-    "tres.cpu",
-    "tres.node",
+    (
+        "tres.mem",
+        "the requested memory if the job is PENDING, otherwise the allocated memory",
+    ),
+    (
+        "tres.gres/gpu",
+        "the requested gpus if the job is PENDING, otherwise the allocated gpus",
+    ),
+    (
+        "tres.cpu",
+        "the requested cpus if the job is PENDING, otherwise the allocated cpus",
+    ),
+    (
+        "tres.node",
+        "the requested nodes if the job is PENDING, otherwise the allocated nodes",
+    ),
 )
 def _(name: str, job: dict[str, Any]) -> str:
     if _callbacks["state.current"](job) == "PENDING":
@@ -215,7 +246,7 @@ def _(name: str, job: dict[str, Any]) -> str:
     return _callbacks[name](job)
 
 
-@extract("energy_consumption")
+@extract(("energy_consumption", "the currently consumed energy of the job in Wh"))
 def _(name: str, job: dict[str, Any]) -> str:
     state = job["state"]["current"][0]
     if state == "PENDING":
@@ -321,7 +352,11 @@ def queued_jobs(me: str, sacct_args: list[str]) -> list[dict[str, Any]]:
 
 
 def print_columns():
-    rprint("[green]" + "[/green], [green]".join(_callbacks.keys()) + "[/green]")
+    for name in _callbacks:
+        descr = ""
+        if name in _column_descriptions:
+            descr = f": {_column_descriptions[name]}."
+        rprint(f" * [green]{name}[/green]{descr}")
 
 
 def main():
