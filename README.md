@@ -1,14 +1,14 @@
 # squeue and sacct displayed with rich
 
-Use:
-```
-uvx rs --from https://github.com/bdvllrs/rich-slurm
-```
-Or install
+Install with
 ```
 uv tool install rs --from https://github.com/bdvllrs/rich-slurm
 ```
 
+or directly use with uvx:
+```
+uvx rs --from https://github.com/bdvllrs/rich-slurm
+```
 ## Commands
 
 Display my jobs (equivalent to `sacct -u $USER`)
@@ -44,9 +44,9 @@ The format is `Displayed Name 1:column_id_1,Displayed Name 2:column_id_2`.
 Display available columns with: `rs columns`. The column ids mostly correspond to the
 keys given by `sacct --json`.
 
-> [note]
-> You can also define the displayed columns the environment variable `RS_COLUMNS` (see
-below).
+> [!note]
+> You can also define the displayed columns with the environment variable `RS_COLUMNS`
+(see below).
 
 # Environment variables
 
