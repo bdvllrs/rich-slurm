@@ -23,7 +23,7 @@ DEFAULT_ARGS = {
     "Id": "array_id",
     "User": "user",
     "Name": "name",
-    "State": "state.current",
+    "State": "state.current_and_reason",
     "Submit": "time.submission",
     "Start": "time.start",
     "Limit": "time.limit",
@@ -161,6 +161,18 @@ def _(_name: str, job: dict[str, Any]) -> str:
 @extract("state.reason")
 def _(_name: str, job: dict[str, Any]) -> str:
     return job["state"]["reason"]
+
+
+@extract("state.current_and_reason")
+def _(_name: str, job: dict[str, Any]) -> str:
+    """
+    Returns the current state, and adds the reason in the case the reason is PENDING.
+    """
+    state = _callbacks["state.current"](job)
+    if state == "PENDING":
+        reason = _callbacks["state.reason"](job)
+        state += f" ({reason})"
+    return state
 
 
 def get_tres(type_: str, name: str, resources: list[dict[str, Any]]) -> float:
